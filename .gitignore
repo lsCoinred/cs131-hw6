@@ -7,3 +7,4 @@ printanalysis
 ocamlbin
 *~
 output
+~$PerformanceExperiments.xlsx
