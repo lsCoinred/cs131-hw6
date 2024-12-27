@@ -107,13 +107,13 @@ module Make (Fact : FACT) (Graph : DFA_GRAPH with type fact := Fact.t) =
         else
           let n = Graph.NodeS.choose worklist in 
           let worklist' = Graph.NodeS.remove n worklist in
-          let out_n = Graph.out graph n in 
+          let old_out_n = Graph.out graph n in 
           let preds_n = Graph.NodeS.elements @@ Graph.preds graph n in
           let out_preds = List.map (fun x -> Graph.out graph x) preds_n in 
           let in_n = Fact.combine out_preds in 
-          let new_out_n = Graph.flow graph n in_n in 
-          if (Fact.compare out_n new_out_n) <> 0 then
-            let new_graph = Graph.add_fact n new_out_n graph in
+          let out_n = Graph.flow graph n in_n in 
+          if (Fact.compare old_out_n out_n) <> 0 then
+            let new_graph = Graph.add_fact n out_n graph in
             let succ_n = Graph.succs graph n in 
             let new_worklist = Graph.NodeS.union worklist' succ_n in 
             loop new_worklist new_graph
