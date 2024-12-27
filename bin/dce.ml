@@ -21,10 +21,24 @@ open Datastructures
 
    Hint: Consider using List.filter
  *)
+
+let dce_insn (lb:uid -> Liveness.Fact.t) 
+             (ab:uid -> Alias.fact)
+             ((u,i) : (uid * insn)) : bool = 
+  let live_u = lb u in
+  let alias_u = ab u in 
+  begin match i with
+  | Call _ -> true 
+  | Store (_, _, Gid x) -> true (* Consider side-effect. *)
+  | Store (_, _, Id x) -> UidS.mem x live_u && UidM.mem x alias_u
+  | _ -> UidS.mem u live_u
+  end
+
 let dce_block (lb:uid -> Liveness.Fact.t) 
               (ab:uid -> Alias.fact)
               (b:Ll.block) : Ll.block =
-  failwith "Dce.dce_block unimplemented"
+  {insns = List.filter (dce_insn lb ab) b.insns; 
+   term = b.term}
 
 (* Run DCE on all the blocks of a given control-flow-graph. *) 
 let run (lg:Liveness.Graph.t) (ag:Alias.Graph.t) (cfg:Cfg.t) : Cfg.t =
