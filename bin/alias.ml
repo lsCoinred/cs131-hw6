@@ -17,6 +17,14 @@ module SymPtr =
       | Unique -> "Unique"
       | UndefAlias -> "UndefAlias"
 
+    let union sym1 sym2 = 
+      begin match sym1, sym2 with
+      | UndefAlias , s 
+      | s , UndefAlias -> s
+      | Unique , Unique -> Unique
+      | MayAlias , _ 
+      | _ , MayAlias -> MayAlias
+      end
   end
 
 (* The analysis computes, at each program point, which UIDs in scope are a unique name
@@ -33,8 +41,44 @@ type fact = SymPtr.t UidM.t
    - Other instructions do not define pointers
 
  *)
+
 let insn_flow ((u,i):uid * insn) (d:fact) : fact =
-  failwith "Alias.insn_flow unimplemented"
+  let update_d u sym = fun d ->
+    UidM.update_or SymPtr.UndefAlias 
+    (fun x -> SymPtr.union sym x) u d
+  in 
+  begin match i with
+  | Alloca _ -> 
+      d |> update_d u SymPtr.Unique
+  | Load (Ptr(Ptr _), _) -> 
+      d |> update_d u SymPtr.MayAlias 
+  | Bitcast (_, op, _) -> 
+      let d' = match op with
+        | Id ptr -> d |> update_d ptr SymPtr.MayAlias
+        | _ ->      d
+      in
+      d' |> update_d u SymPtr.MayAlias
+  | Store (Ptr _, Id ptr, _) ->  
+      d |> update_d ptr SymPtr.MayAlias
+  | Call (ty, _, args) -> 
+      let d' = match ty with
+        | Ptr _ -> d |> update_d u SymPtr.MayAlias
+        | _ ->     d
+      in
+      List.fold_left 
+        (fun syms (ty, op) -> match ty, op with
+            | Ptr _ , Id ptr -> d |> update_d ptr SymPtr.MayAlias
+            | _ ->              d
+        ) d' args
+  | Gep (_, op, _) ->
+      let d' = match op with
+        | Id ptr -> d |> update_d ptr SymPtr.MayAlias
+        | _ ->      d
+      in
+      d' |> update_d u SymPtr.MayAlias
+  | _ -> d
+  end
+
 
 
 (* The flow function across terminators is trivial: they never change alias info *)
@@ -69,7 +113,12 @@ module Fact =
        meet of two SymPtr.t facts.
     *)
     let combine (ds:fact list) : fact =
-      failwith "Alias.Fact.combine not implemented"
+      List.fold_left 
+        (fun m1 m2 -> 
+            UidM.union 
+            (fun _ sym1 sym2 -> Some (SymPtr.union sym1 sym2)) 
+            m1 m2 
+        ) UidM.empty ds
   end
 
 (* instantiate the general framework ---------------------------------------- *)
