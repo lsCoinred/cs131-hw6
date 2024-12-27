@@ -260,7 +260,7 @@ module AsGraph (D:AS_GRAPH_PARAMS) :
       fun u -> UidM.find u m'
 
     (* Compute OUT[n] for each instruction in a block, given IN of the first instruction *)
-    let  out_forwards_map 
+    let out_forwards_map 
         ({insns; term}:block) (d_in:'d) : uid -> 'd =
       let t_id, t = term in
       let m, d_tmn = List.fold_left
