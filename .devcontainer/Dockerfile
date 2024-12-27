@@ -66,12 +66,23 @@ RUN touch /home/$USERNAME/.local/state/utop-history
 
 # Configure opam/ocaml
 # !!![zjy] change default repo to github (SJTU repo is failed)
-RUN opam init --yes --disable-sandboxing default https://github.com/ocaml/opam-repository.git
-RUN opam switch create 4.13.1 ocaml-base-compiler.4.13.1
-RUN opam switch 4.13.1
-RUN opam install -y dune
-RUN opam install -y num
-RUN opam install -y menhir
+#RUN opam init --yes --disable-sandboxing default https://github.com/ocaml/opam-repository.git
+#RUN opam switch create 4.13.1 ocaml-base-compiler.4.13.1
+#RUN opam switch 4.13.1
+#RUN opam install -y dune
+#RUN opam install -y num
+#RUN opam install -y menhir
+#RUN opam install -y utop
+#RUN opam install -y ocamlformat
+#RUN opam install -y ocaml-lsp-server
+#RUN eval `opam config env`
+# RUN opam init --yes --disable-sandboxing default https://github.com/ocaml/opam-repository.git
+RUN opam init -y --disable-sandboxing --compiler=4.14.1
+# RUN opam switch create 4.14.1 ocaml-base-compiler.4.14.1
+RUN opam switch 4.14.1
+RUN opam install --yes dune
+RUN opam install --yes num
+RUN opam install --yes menhir
 RUN opam install -y utop
 RUN opam install -y ocamlformat
 RUN opam install -y ocaml-lsp-server
