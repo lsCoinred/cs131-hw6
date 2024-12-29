@@ -31,17 +31,17 @@ let rec eval_binop (bop : bop) (c1 : SymConst.t) (c2 : SymConst.t) : SymConst.t 
   let open Int64 in
   match c1, c2 with
   | Const i1, Const i2 ->
-    (match bop with
-     | Add -> Const (Int64.add i1 i2)
-     | Sub -> Const (Int64.sub i1 i2)
-     | Mul -> Const (Int64.mul i1 i2)
-     | Shl -> Const (Int64.shift_left i1 (Int64.to_int i2))
-     | Lshr -> Const (Int64.shift_right_logical i1 (Int64.to_int i2))
-     | Ashr -> Const (Int64.shift_right i1 (Int64.to_int i2))
-     | And -> Const (Int64.logand i1 i2)
-     | Or -> Const (Int64.logor i1 i2)
-     | Xor -> Const (Int64.logxor i1 i2)
-     | _ -> failwith "eval_binop: invalid binop")
+    begin match bop with
+      | Add -> Const (Int64.add i1 i2)
+      | Sub -> Const (Int64.sub i1 i2)
+      | Mul -> Const (Int64.mul i1 i2)
+      | Shl -> Const (Int64.shift_left i1 (Int64.to_int i2))
+      | Lshr -> Const (Int64.shift_right_logical i1 (Int64.to_int i2))
+      | Ashr -> Const (Int64.shift_right i1 (Int64.to_int i2))
+      | And -> Const (Int64.logand i1 i2)
+      | Or -> Const (Int64.logor i1 i2)
+      | Xor -> Const (Int64.logxor i1 i2)
+    end
   | _ -> failwith "eval_binop: non-const arguments"
 ;;
 
@@ -49,14 +49,14 @@ let rec eval_cnd (cond : cnd) (c1 : SymConst.t) (c2 : SymConst.t) : SymConst.t =
   let eval cmp = if cmp c1 c2 then SymConst.Const 1L else SymConst.Const 0L in
   match c1, c2 with
   | SymConst.Const _, SymConst.Const _ ->
-    (match cond with
-     | Eq -> eval ( = )
-     | Ne -> eval ( <> )
-     | Sgt -> eval ( > )
-     | Sge -> eval ( >= )
-     | Slt -> eval ( < )
-     | Sle -> eval ( <= )
-     | _ -> failwith "eval_cnd: invalid condition")
+    begin match cond with
+      | Eq -> eval ( = )
+      | Ne -> eval ( <> )
+      | Sgt -> eval ( > )
+      | Sge -> eval ( >= )
+      | Slt -> eval ( < )
+      | Sle -> eval ( <= )
+    end
   | _ -> failwith "eval_cnd: non-const arguments"
 ;;
 
@@ -67,7 +67,7 @@ let rec eval_cnd (cond : cnd) (c1 : SymConst.t) (c2 : SymConst.t) : SymConst.t =
    - Uid of a binop or icmp with an NonConst argument is NonConst-out
    - Uid of stores and void calls are UndefConst-out
    - Uid of all other instructions are NonConst-out
- *)
+*)
 let insn_flow ((u, i) : uid * insn) (d : fact) : fact =
   match i with
   | Binop (bop, _, op1, op2) ->
@@ -196,7 +196,47 @@ let run (cg : Graph.t) (cfg : Cfg.t) : Cfg.t =
   let cp_block (l : Ll.lbl) (cfg : Cfg.t) : Cfg.t =
     let b = Cfg.block cfg l in
     let cb = Graph.uid_out cg l in
-    failwith "Constprop.cp_block unimplemented"
+    (* failwith "Constprop.cp_block unimplemented" *)
+    let b = Cfg.block cfg l in
+    let cb = Graph.uid_out cg l in
+    let aux_instr ((id,ins) :(uid * insn)) : (uid * insn) =
+      let temp = cb id in
+      let auxx (op: operand) : operand =
+        begin match op with 
+          | Gid id | Id id -> begin match UidM.find_opt id temp with
+              | Some (Const x) -> Const x
+              | _ -> op
+            end
+          | _ -> op
+        end in
+      begin match ins with 
+        | Binop (bop, ty, op1, op2) -> (id, Binop (bop, ty, auxx op1, auxx op2))
+        | Icmp (cnd, ty, op1, op2) -> (id, Icmp (cnd, ty, auxx op1, auxx op2))
+        | Load (ty, op) -> (id, Load (ty, auxx op))
+        | Store (ty, op1, op2) -> (id, Store (ty, auxx op1, auxx op2))
+        | Call (ty, op, op_list) -> (id, Call(ty, auxx op, List.map (fun (x,y) -> (x, auxx y)) op_list))
+        | Bitcast (ty1, op, ty2) -> (id, Bitcast (ty1, auxx op, ty2))
+        | _ -> (id, ins)
+      end
+    in
+    let aux_term ((id,term) :(uid * terminator)) : (uid * terminator) =
+      let temp = cb id in
+      let auxx (op: operand) : operand =
+        begin match op with 
+          | Gid id | Id id -> begin match UidM.find id temp with
+              | Const x -> Const x
+              | _ -> op
+            end
+          | _ -> op
+        end in
+      begin match term with 
+        | Ret (ty, (Some op)) -> (id, Ret (ty, (Some (auxx op))))
+        | Cbr (op, l1, l2) -> (id, Cbr (auxx op,l1,l2))
+        | _ -> (id, term)
+      end
+    in
+    let block = {insns = List.map aux_instr b.insns; term = aux_term b.term} in
+    {cfg with blocks=LblM.add l block (LblM.remove l cfg.blocks)}
   in
   LblS.fold cp_block (Cfg.nodes cfg) cfg
 ;;
