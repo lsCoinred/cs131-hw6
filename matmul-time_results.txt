@@ -1,0 +1,51 @@
+Running Test for matmul
+Running iteration 1...
+0m1.936s
+0m1.339s
+0m0.407s
+0m0.047s
+0m2.003s
+0m1.323s
+0m0.421s
+0m0.068s
+
+Running iteration 2...
+0m1.927s
+0m1.338s
+0m0.420s
+0m0.065s
+0m1.953s
+0m1.390s
+0m0.435s
+0m0.060s
+
+Running iteration 3...
+0m1.999s
+0m1.345s
+0m0.439s
+0m0.077s
+0m2.061s
+0m1.374s
+0m0.438s
+0m0.067s
+
+Running iteration 4...
+0m2.098s
+0m1.394s
+0m0.434s
+0m0.064s
+0m2.131s
+0m1.466s
+0m0.421s
+0m0.047s
+
+Running iteration 5...
+0m1.949s
+0m1.394s
+0m0.398s
+0m0.047s
+0m1.926s
+0m1.350s
+0m0.428s
+0m0.065s
+

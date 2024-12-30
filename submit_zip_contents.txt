@@ -4,3 +4,4 @@ bin/dce.ml
 bin/constprop.ml
 bin/backend.ml
 PerformanceExperiments.xlsx
+test/ptest.oat

@@ -79,3 +79,18 @@ registers.ml 提供了一些辅助函数，你可以用来获取程序中内存�
 4. When only pre-colored node remain, start coloring (popping simplified nodes off the top of the stack).
     1. If a node must be spilled, insert spill code as on slide 14 and rerun the whole register allocation algorithm starting at step 1.
     2. Option 1: Reserve registers specifically for moving to/from memory.
+
+
+### Run:
+
+以下示例展示了用于测试命令行中几个配置的 hw4programs/regalloctest.oat 文件的一个交互：
+
+```
+make oat_experiments FILE=hw4programs/regalloctest.oat
+```
+
+以下示例展示了用于测试使用命令行中的 -O1 标志的几个配置的 llprograms/matmul.ll 文件的一个交互：
+
+```
+make ll_experiments FILE=llprograms/matmul.ll OPT=-O1
+```
