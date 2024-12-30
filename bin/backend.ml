@@ -857,21 +857,6 @@ module InterferenceGraph = struct
     | "" -> None
     | uid -> Some uid
   
-  let find_node_with_max_deg (g:t) : uid = 
-    let find_bigger (this_uid : string) (this: (Alloc.loc option * UidSet.t)) (biggest: string * (Alloc.loc option * UidSet.t)) : (string * (Alloc.loc option * UidSet.t)) = 
-      let deg_this = UidSet.cardinal (snd this) in
-      let deg_biggest = UidSet.cardinal (snd (snd biggest)) in
-      begin match fst this with
-      | None ->
-        if (deg_this < deg_biggest) then 
-          biggest
-        else (this_uid, this)
-      | Some _ -> biggest
-      end
-    in
-    let init = ("", (None, UidSet.empty)) in
-    fst (UidM.fold find_bigger g init)
-
 end    
 
 
