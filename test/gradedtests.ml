@@ -524,8 +524,7 @@ let constprop_opt_tests =
   ]
 
 
-(*
-let tests : suite =
+(*let tests : suite =
   [
   GradedTest("solver / liveness analysis tests", 10, dfa_liveness_file liveness_analysis_tests);
   GradedTest("alias analysis tests", 10, dfa_alias_file alias_analysis_tests);
@@ -535,14 +534,12 @@ let tests : suite =
   Test("ll regalloc correctness tests", pass_all_executed_ll_file ll_tests);
   Test("oat regalloc correctness tests", pass_all_executed_oat_file (oat_correctness_tests @ regalloc_challenge_tests));
   GradedTest("oat regalloc quality tests", 35, quality_oat oat_regalloc_quality_tests);
-  
-  
-  ]*)
+ ]*)
 
-  let tests : suite =
-    [
-    Test("ll regalloc correctness tests", pass_all_executed_ll_file ll_tests);
-    ]
+ let tests : suite =
+  [
+  GradedTest("dce optimization tests", 10, opt_dce_file dce_opt_tests);
+  ]
 
 let manual_tests : suite = [
     GradedTest ("Submitted Test Case", 5,

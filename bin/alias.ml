@@ -44,8 +44,9 @@ type fact = SymPtr.t UidM.t
 
 let insn_flow ((u,i):uid * insn) (d:fact) : fact =
   let update_d u sym = fun d ->
-    UidM.update_or SymPtr.UndefAlias 
-    (fun x -> SymPtr.union sym x) u d
+    (*UidM.update_or SymPtr.UndefAlias 
+    (fun x -> SymPtr.union sym x) u d*)
+    UidM.add u sym d
   in 
   begin match i with
   | Alloca _ -> 

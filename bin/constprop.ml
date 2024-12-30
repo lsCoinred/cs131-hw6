@@ -222,13 +222,15 @@ let run (cg : Graph.t) (cfg : Cfg.t) : Cfg.t =
     let aux_term ((id,term) :(uid * terminator)) : (uid * terminator) =
       let temp = cb id in
       let auxx (op: operand) : operand =
-        begin match op with 
-          | Gid id | Id id -> begin match UidM.find id temp with
-              | Const x -> Const x
+          (* Why find_opt instead of find here? *)
+          begin match op with 
+          | Gid id | Id id -> begin match UidM.find_opt id temp with
+              | Some (Const x) -> Const x
               | _ -> op
             end
           | _ -> op
-        end in
+          end
+        in
       begin match term with 
         | Ret (ty, (Some op)) -> (id, Ret (ty, (Some (auxx op))))
         | Cbr (op, l1, l2) -> (id, Cbr (auxx op,l1,l2))
@@ -238,5 +240,5 @@ let run (cg : Graph.t) (cfg : Cfg.t) : Cfg.t =
     let block = {insns = List.map aux_instr b.insns; term = aux_term b.term} in
     {cfg with blocks=LblM.add l block (LblM.remove l cfg.blocks)}
   in
-  LblS.fold cp_block (Cfg.nodes cfg) cfg
+    LblS.fold cp_block (Cfg.nodes cfg) cfg
 ;;
