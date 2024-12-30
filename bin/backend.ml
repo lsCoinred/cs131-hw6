@@ -743,7 +743,20 @@ let greedy_layout (f:Ll.fdecl) (live:liveness) : layout =
 *)
 
 let better_layout (f:Ll.fdecl) (live:liveness) : layout =
-  failwith "Backend.better_layout not implemented"
+  (* TODO: modify it into better *)
+  let lo, n_stk = 
+    fold_fdecl
+      (fun (lo, n) (x, _) -> (x, Alloc.LStk (- (n + 1)))::lo, n + 1)
+      (fun (lo, n) l -> (l, Alloc.LLbl (Platform.mangle l))::lo, n)
+      (fun (lo, n) (x, i) ->
+        if insn_assigns i 
+        then (x, Alloc.LStk (- (n + 1)))::lo, n + 1
+        else (x, Alloc.LVoid)::lo, n)
+      (fun a _ -> a)
+      ([], 0) f in
+  { uid_loc = (fun x -> List.assoc x lo)
+  ; spill_bytes = 8 * n_stk
+  }
 
 
 

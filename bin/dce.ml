@@ -30,7 +30,7 @@ let dce_insn (lb:uid -> Liveness.Fact.t)
   begin match i with
   | Call _ -> true 
   | Store (_, _, Gid x) -> true (* Consider side-effect. *)
-  | Store (_, _, Id x) -> UidS.mem x live_u && UidM.mem x alias_u
+  | Store (_, _, Id x) -> UidS.mem x live_u || UidM.mem x alias_u
   | _ -> UidS.mem u live_u
   end
 

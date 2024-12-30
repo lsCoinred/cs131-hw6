@@ -1,0 +1,71 @@
+dune build bin/main.exe
+./oatc --test
+
+ll regalloc correctness tests
+passed - llprograms/add.ll
+passed - llprograms/sub.ll
+passed - llprograms/mul.ll
+passed - llprograms/and.ll
+passed - llprograms/or.ll
+passed - llprograms/xor.ll
+passed - llprograms/shl.ll
+passed - llprograms/lshr.ll
+passed - llprograms/ashr.ll
+passed - llprograms/return.ll
+passed - llprograms/return42.ll
+passed - llprograms/br1.ll
+passed - llprograms/br2.ll
+passed - llprograms/cbr1.ll
+passed - llprograms/cbr2.ll
+passed - llprograms/cbr3.ll
+passed - llprograms/alloca1.ll
+passed - llprograms/alloca2.ll
+passed - llprograms/global1.ll
+passed - llprograms/call.ll
+passed - llprograms/call1.ll
+passed - llprograms/call2.ll
+passed - llprograms/call3.ll
+passed - llprograms/call4.ll
+passed - llprograms/call5.ll
+passed - llprograms/call6.ll
+passed - llprograms/call7.ll
+passed - llprograms/call8.ll
+passed - llprograms/bitcast1.ll
+passed - llprograms/gep1.ll
+passed - llprograms/gep2.ll
+passed - llprograms/gep3.ll
+passed - llprograms/gep4.ll
+passed - llprograms/gep5.ll
+passed - llprograms/gep6.ll
+passed - llprograms/gep7.ll
+passed - llprograms/gep8.ll
+passed - llprograms/gep9.ll
+passed - llprograms/gep10.ll
+passed - llprograms/add_twice.ll
+passed - llprograms/sub_neg.ll
+passed - llprograms/arith_combo.ll
+passed - llprograms/return_intermediate.ll
+FAILED - llprograms/sum_tree.ll: test threw exception: Not_found
+passed - llprograms/gcd_euclidian.ll
+FAILED - llprograms/binarysearch.ll: test threw exception: Not_found
+passed - llprograms/qtree.ll
+passed - llprograms/binary_gcd.ll
+passed - llprograms/linear_search.ll
+passed - llprograms/lfsr.ll
+passed - llprograms/naive_factor_prime.ll
+passed - llprograms/naive_factor_nonprime.ll
+passed - llprograms/euclid.ll
+passed - llprograms/matmul.ll
+passed - llprograms/list1.ll
+passed - llprograms/cbr.ll
+passed - llprograms/factorial.ll
+passed - llprograms/factrect.ll
+Submitted Test Case (0/5 points = 0/1 tests)
+FAILED - manually: not equal
+Performance Comparison (0/5 points = 0/1 tests)
+FAILED - manually: not equal
+---------------------------------------------------
+Passed: 56/60
+Failed: 4/60
+Score: 0.0/10 (given)
+       ?/0 (hidden)

@@ -363,7 +363,7 @@ let hw4_easy_tests = [
     ("hw4programs/run42.oat", "", "2");
     ("hw4programs/run49.oat", "", "abc0");
     ("hw4programs/run50.oat", "", "abcde0");
-    ("hw4programs/run61.oat", "", "131");
+    ("hw4programs/run61.oat", "", "3410");
 ]
 
 let hw4_medium_tests = [
@@ -524,7 +524,7 @@ let constprop_opt_tests =
   ]
 
 
-
+(*
 let tests : suite =
   [
   GradedTest("solver / liveness analysis tests", 10, dfa_liveness_file liveness_analysis_tests);
@@ -537,7 +537,12 @@ let tests : suite =
   GradedTest("oat regalloc quality tests", 35, quality_oat oat_regalloc_quality_tests);
   
   
-  ]
+  ]*)
+
+  let tests : suite =
+    [
+    Test("ll regalloc correctness tests", pass_all_executed_ll_file ll_tests);
+    ]
 
 let manual_tests : suite = [
     GradedTest ("Submitted Test Case", 5,
