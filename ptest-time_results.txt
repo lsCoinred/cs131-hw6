@@ -1,0 +1,51 @@
+Running Test for ptest
+Running iteration 1...
+0m1.907s
+0m1.006s
+0m0.982s
+0m0.196s
+0m1.896s
+0m1.141s
+0m0.943s
+0m0.195s
+
+Running iteration 2...
+0m1.939s
+0m0.997s
+0m0.957s
+0m0.196s
+0m1.861s
+0m1.137s
+0m0.918s
+0m0.176s
+
+Running iteration 3...
+0m1.894s
+0m0.994s
+0m0.972s
+0m0.193s
+0m1.906s
+0m1.177s
+0m0.962s
+0m0.196s
+
+Running iteration 4...
+0m1.869s
+0m1.008s
+0m0.960s
+0m0.184s
+0m1.862s
+0m1.219s
+0m0.925s
+0m0.175s
+
+Running iteration 5...
+0m1.965s
+0m0.971s
+0m0.956s
+0m0.173s
+0m1.844s
+0m1.168s
+0m0.959s
+0m0.175s
+
