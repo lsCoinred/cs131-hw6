@@ -8,3 +8,5 @@ ocamlbin
 *~
 output
 ~$PerformanceExperiments.xlsx
+
+output.txt
