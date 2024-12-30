@@ -760,7 +760,9 @@ module InterferenceGraph = struct
   let set_pref_color (g:t) (nd : uid) (pref : LocSet.t) : t =
     UidM.update (fun ((c, _), s) -> ((c,Some pref), s)) nd g
   
-  let get_color (g:t) (nd : uid) : Alloc.loc option = fst @@ fst (UidM.find nd g)
+  let get_color (g:t) (nd : uid) : Alloc.loc option = 
+      fst @@ fst (UidM.find nd g)
+      
   let get_color_pair (g:t) (nd : uid) : Alloc.loc option * LocSet.t option = fst (UidM.find nd g)
 
   let get_pref_color (g:t) (nd : uid) : LocSet.t = 
@@ -869,12 +871,15 @@ module InterferenceGraph = struct
       ) g UidSet.empty 
   
   let get_uncolored (g:t) : UidSet.t =
-    UidM.fold (fun x (node) set ->
-      let loc = fst @@ fst node in
-      match loc with
-      | None -> UidSet.add x set
-      | Some _ -> set             
-    ) g UidSet.empty
+    try
+      UidM.fold (fun x (node) set ->
+        let loc = fst @@ fst node in
+        match loc with
+        | None -> UidSet.add x set
+        | Some _ -> set             
+      ) g UidSet.empty
+    with  
+    | Not_found -> failwith "Not Found at get_uncolored"
 end    
 
 
@@ -975,11 +980,19 @@ let better_layout (f:Ll.fdecl) (live:liveness) : layout =
   (* 5. k color *)
 
   let rec k_color_graph (k: int) (g: InterferenceGraph.t) : InterferenceGraph.t =
-    let non_precolored = InterferenceGraph.get_uncolored g in
+    let non_precolored = 
+      try 
+        InterferenceGraph.get_uncolored g 
+      with 
+      | Not_found -> failwith "Not Found at non_precolored"
+    in
     if UidSet.is_empty non_precolored then g
     else
       let less_than_k = 
+        try 
         InterferenceGraph.find_degree_less_than g k 
+        with 
+        | Not_found -> failwith "Not Found at less_than_k"
       in
       let nodes = 
         if UidSet.is_empty less_than_k 
@@ -992,13 +1005,23 @@ let better_layout (f:Ll.fdecl) (live:liveness) : layout =
             then u else u0
           ) nodes (UidSet.choose nodes)
       in
-      let pref_color = InterferenceGraph.get_pref_color g c_node in
+      let pref_color = 
+        try 
+          InterferenceGraph.get_pref_color g c_node 
+        with 
+        | Not_found -> failwith "Not Found at pref_color"
+      in
   
       (* color recursively *)
-      let (colouring_g, (_, c_neighbor)) = 
+      let (colouring_g, (c_col_pair, c_neighbor)) = 
         InterferenceGraph.remove_node g c_node
       in
-      let colored_g = k_color_graph k colouring_g in
+      let colored_sub_g = 
+        k_color_graph k colouring_g 
+      in
+      let colored_g = 
+        InterferenceGraph.add_node colored_sub_g c_node (c_col_pair, c_neighbor)
+      in
   
       let neighbor_colors = 
         List.map (fun uid -> 
@@ -1034,7 +1057,12 @@ let better_layout (f:Ll.fdecl) (live:liveness) : layout =
   in
 
   let k = Alloc.LocSet.cardinal pal in
-  let colored_g = k_color_graph k preferred_g in
+  let colored_g =
+    try 
+        k_color_graph k preferred_g
+    with  
+    | Not_found -> failwith "Not Found at k color"
+  in
 
   (* 6. allocate *)
   let get_loc_res = fun x ->
