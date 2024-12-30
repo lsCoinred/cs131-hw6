@@ -770,7 +770,6 @@ module InterferenceGraph = struct
     | Some x -> x
     end
     
-  
   let neighbors (g:t) (nd : uid) : UidSet.t = snd (UidM.find nd g)
 
   let neighbors_opt (g:t) (nd : uid) : UidSet.t option =
@@ -826,10 +825,10 @@ module InterferenceGraph = struct
     UidM.remove nd g', (c, neighbors)
 
   let print_graph (g:t) : unit = 
-    let print_node (uid : string) ((loc, neighbors) : (Alloc.loc option * UidSet.t)) : unit =
+    let print_node (uid : string) ((loc, neighbors) : node) : unit =
       Printf.printf "uid: %s, loc: %s, neighbors: " uid (((
         function | (Some x) -> Alloc.str_loc x 
-                  | None -> "None") loc));
+                  | None -> "None") (fst loc)));
       UidSet.iter (fun uid -> Printf.printf "%s, " uid) neighbors;
       Printf.printf ("\n")
     in
@@ -856,72 +855,27 @@ module InterferenceGraph = struct
       then n else n_min
       ) g ""
 
-  let find_degree_lowerbound (g:t) (k : int) : uid option =
-    let result =
-      UidM.fold (
-        fun x (loc, s) x0 : string ->
-          match loc with
-          | None -> if (calc_degree s < k) then x else x0
-          | Some _ -> x0
-      ) g "" 
-    in
-    match result with 
-    | "" -> None
-    | uid -> Some uid
+  let find_degree_less_than (g:t) (k : int) : UidSet.t =
+    UidM.fold 
+      (fun x ((loc, _), s) set ->
+          let new_node = begin 
+            match loc with
+            | None -> 
+              if (calc_degree s < k) then UidSet.singleton x
+                else UidSet.empty 
+            | Some _ -> UidSet.empty 
+          end in
+          UidSet.union set new_node
+      ) g UidSet.empty 
   
+  let get_uncolored (g:t) : UidSet.t =
+    UidM.fold (fun x (node) set ->
+      let loc = fst @@ fst node in
+      match loc with
+      | None -> UidSet.add x set
+      | Some _ -> set             
+    ) g UidSet.empty
 end    
-
-let rec k_color_graph (k: int) (g: InterferenceGraph.t) : InterferenceGraph.t =
-  let non_precolored_nodes = 
-    UidM.filter (fun uid _ -> not @@ UidM.exists (fun key _ -> key = uid) precolored) interference 
-  in
-  if UidMap.is_empty non_precolored_nodes 
-    then precolored
-  else
-    let less_than_k = 
-      UidMap.filter (fun _ neighbours -> UidSet.cardinal neighbours < k) non_precolored_nodes 
-    in
-    let nodes = 
-      if UidMap.is_empty less_than_k then non_precolored_nodes 
-      else less_than_k 
-    in 
-    let (c_node, c_neigh) =
-      UidMap.fold (fun uid neighbours (uid_acc, neighbours_acc) ->
-          if UidSet.cardinal neighbours_acc < UidSet.cardinal neighbours
-          then
-            (uid, neighbours)
-          else
-            (uid_acc, neighbours_acc)
-        ) nodes (UidMap.choose nodes)
-    in
-
-    let pref_color = UidMap.find_or LocSet.empty preference c_node in
-
-    (* recursive part *)
-    let colouring_map = 
-      let new_graph = UidSet.fold (
-        fun uid old_map -> UidMap.update (fun old_set -> UidSet.remove c_node old_set) uid old_map
-      ) c_neigh (UidMap.remove c_node interference) in
-      colour_graph k {g with interference=new_graph} in
-    let n_colours = List.map (fun uid -> UidMap.find uid colouring_map) (UidSet.elements c_neigh) in
-    let avail_color = LocSet.filter (fun loc -> not @@ List.exists (fun el -> el = loc) n_colours) pal in
-    
-
-    let opt_chosen_col =
-      if LocSet.is_empty pref_color then
-        let best_colour_opt = LocSet.choose_opt @@ LocSet.inter LocSet.empty avail_color in
-        begin match best_colour_opt with
-          | None -> LocSet.choose_opt avail_color
-          | _ -> best_colour_opt
-        end
-      else LocSet.choose_opt @@ LocSet.inter avail_color pref_color
-    in
-    begin match opt_chosen_col with
-      | Some c -> 
-          UidMap.add c_node c colouring_map
-      | None -> 
-          UidMap.add c_node (spill()) colouring_map
-    end
 
 
 let better_layout (f:Ll.fdecl) (live:liveness) : layout =
@@ -1019,6 +973,66 @@ let better_layout (f:Ll.fdecl) (live:liveness) : layout =
   in
 
   (* 5. k color *)
+
+  let rec k_color_graph (k: int) (g: InterferenceGraph.t) : InterferenceGraph.t =
+    let non_precolored = InterferenceGraph.get_uncolored g in
+    if UidSet.is_empty non_precolored then g
+    else
+      let less_than_k = 
+        InterferenceGraph.find_degree_less_than g k 
+      in
+      let nodes = 
+        if UidSet.is_empty less_than_k 
+        then non_precolored else less_than_k 
+      in 
+      (* get max deg node in vaild nodes *)
+      let c_node =
+        UidSet.fold (fun u u0 ->
+            if (InterferenceGraph.get_degree g u0) < (InterferenceGraph.get_degree g u)
+            then u else u0
+          ) nodes (UidSet.choose nodes)
+      in
+      let pref_color = InterferenceGraph.get_pref_color g c_node in
+  
+      (* color recursively *)
+      let (colouring_g, (_, c_neighbor)) = 
+        InterferenceGraph.remove_node g c_node
+      in
+      let colored_g = k_color_graph k colouring_g in
+  
+      let neighbor_colors = 
+        List.map (fun uid -> 
+          let res = UidM.find uid colored_g in 
+          begin match res with 
+          | ((Some loc, _), _) -> loc
+          | _ -> failwith "Non colored neighbor node"
+          end
+        ) (UidSet.elements c_neighbor) 
+      in
+      let vaild_color = 
+        LocSet.filter (fun loc -> not @@ List.exists (fun x -> x = loc) neighbor_colors) pal 
+      in
+      
+      (* color choice *)
+      let opt_chosen_col =
+        if LocSet.is_empty pref_color then
+          let best_colour_opt = 
+            LocSet.choose_opt @@ LocSet.inter LocSet.empty vaild_color 
+          in
+          begin match best_colour_opt with
+            | None -> LocSet.choose_opt vaild_color
+            | _ -> best_colour_opt
+          end
+        else LocSet.choose_opt @@ LocSet.inter vaild_color pref_color
+      in
+      begin match opt_chosen_col with
+        | Some c -> 
+          InterferenceGraph.set_color colored_g c_node c
+        | None -> 
+          InterferenceGraph.set_color colored_g c_node (spill()) 
+      end
+  in
+
   let k = Alloc.LocSet.cardinal pal in
   let colored_g = k_color_graph k preferred_g in
 
