@@ -27,39 +27,33 @@ end
    to integer constants *)
 type fact = SymConst.t UidM.t
 
-let rec eval_binop (bop : bop) (c1 : SymConst.t) (c2 : SymConst.t) : SymConst.t =
+let eval_binop (bop)= 
   let open Int64 in
-  match c1, c2 with
-  | Const i1, Const i2 ->
-    begin match bop with
-      | Add -> Const (Int64.add i1 i2)
-      | Sub -> Const (Int64.sub i1 i2)
-      | Mul -> Const (Int64.mul i1 i2)
-      | Shl -> Const (Int64.shift_left i1 (Int64.to_int i2))
-      | Lshr -> Const (Int64.shift_right_logical i1 (Int64.to_int i2))
-      | Ashr -> Const (Int64.shift_right i1 (Int64.to_int i2))
-      | And -> Const (Int64.logand i1 i2)
-      | Or -> Const (Int64.logor i1 i2)
-      | Xor -> Const (Int64.logxor i1 i2)
-    end
-  | _ -> failwith "eval_binop: non-const arguments"
+  match bop with
+  | Add -> add
+  | Sub -> sub
+  | Mul -> mul
+  | Shl -> (fun x y -> shift_left x (to_int y))
+  | Lshr -> (fun x y -> shift_right_logical x (to_int y))
+  | Ashr -> (fun x y -> shift_right x (to_int y))
+  | And -> logand
+  | Or -> logor
+  | Xor -> logxor
 ;;
 
-let rec eval_cnd (cond : cnd) (c1 : SymConst.t) (c2 : SymConst.t) : SymConst.t =
-  let eval cmp = if cmp c1 c2 then SymConst.Const 1L else SymConst.Const 0L in
-  match c1, c2 with
-  | SymConst.Const _, SymConst.Const _ ->
-    begin match cond with
-      | Eq -> eval ( = )
-      | Ne -> eval ( <> )
-      | Sgt -> eval ( > )
-      | Sge -> eval ( >= )
-      | Slt -> eval ( < )
-      | Sle -> eval ( <= )
-    end
-  | _ -> failwith "eval_cnd: non-const arguments"
+let eval_cnd (cnd : cnd) (i1 : int64) (i2 : int64) =
+  let open Int64 in
+  let cmp = 
+    match cnd with
+    | Eq -> equal i1 i2
+    | Ne -> not @@ equal i1 i2
+    | Slt -> (compare i1 i2) < 0
+    | Sle -> (compare i1 i2) <= 0
+    | Sgt -> (compare i1 i2) > 0
+    | Sge -> (compare i1 i2) >= 0
+  in
+  if cmp then 1L else 0L
 ;;
-
 (* flow function across Ll instructions ------------------------------------- *)
 (* - Uid of a binop or icmp with const arguments is constant-out with
      result that is computed statically (see the Int64 module)
@@ -68,72 +62,44 @@ let rec eval_cnd (cond : cnd) (c1 : SymConst.t) (c2 : SymConst.t) : SymConst.t =
    - Uid of stores and void calls are UndefConst-out
    - Uid of all other instructions are NonConst-out
 *)
-let insn_flow ((u, i) : uid * insn) (d : fact) : fact =
-  match i with
-  | Binop (bop, _, op1, op2) ->
-    (match op1, op2 with
-     | Const c1, Const c2 -> UidM.add u (eval_binop bop (Const c1) (Const c2)) d
-     | Const c1, Id id | Const c1, Gid id ->
-       let is_const = UidM.find_opt id d in
-       (match is_const with
-        | Some (Const c2) -> UidM.add u (eval_binop bop (Const c1) (Const c2)) d
-        | Some NonConst -> UidM.add u SymConst.NonConst d
-        | Some UndefConst -> UidM.add u SymConst.UndefConst d
-        | None -> d)
-     | Id id, Const c1 | Gid id, Const c1 ->
-       let is_const = UidM.find_opt id d in
-       (match is_const with
-        | Some (Const c2) -> UidM.add u (eval_binop bop (Const c2) (Const c1)) d
-        | Some NonConst -> UidM.add u SymConst.NonConst d
-        | Some UndefConst -> UidM.add u SymConst.UndefConst d
-        | None -> d)
-     | Id id1, Id id2 | Id id1, Gid id2 | Gid id1, Id id2 | Gid id1, Gid id2 ->
-       let id1_is_const = UidM.find_opt id1 d in
-       let id2_is_const = UidM.find_opt id2 d in
-       (match id1_is_const, id2_is_const with
-        | Some (Const c1), Some (Const c2) ->
-          UidM.add u (eval_binop bop (Const c1) (Const c2)) d
-        | Some NonConst, _ | _, Some NonConst -> UidM.add u SymConst.NonConst d
-        | Some UndefConst, _ | _, Some UndefConst -> UidM.add u SymConst.UndefConst d
-        | None, _ | _, None -> d)
-     | _ -> failwith "insn_flow: invalid binop arguments")
-  | Icmp (cond, _, op1, op2) ->
-    (match op1, op2 with
-     | Const c1, Const c2 -> UidM.add u (eval_cnd cond (Const c1) (Const c2)) d
-     | Const c1, Id id | Const c1, Gid id ->
-       let is_const = UidM.find_opt id d in
-       (match is_const with
-        | Some (Const c2) -> UidM.add u (eval_cnd cond (Const c1) (Const c2)) d
-        | Some NonConst -> UidM.add u SymConst.NonConst d
-        | Some UndefConst -> UidM.add u SymConst.UndefConst d
-        | None -> d)
-     | Id id, Const c1 | Gid id, Const c1 ->
-       let is_const = UidM.find_opt id d in
-       (match is_const with
-        | Some (Const c2) -> UidM.add u (eval_cnd cond (Const c2) (Const c1)) d
-        | Some NonConst -> UidM.add u SymConst.NonConst d
-        | Some UndefConst -> UidM.add u SymConst.UndefConst d
-        | None -> d)
-     | Id id1, Id id2 | Id id1, Gid id2 | Gid id1, Id id2 | Gid id1, Gid id2 ->
-       let id1_is_const = UidM.find_opt id1 d in
-       let id2_is_const = UidM.find_opt id2 d in
-       (match id1_is_const, id2_is_const with
-        | Some (Const c1), Some (Const c2) ->
-          UidM.add u (eval_cnd cond (Const c1) (Const c2)) d
-        | Some NonConst, _ | _, Some NonConst -> UidM.add u SymConst.NonConst d
-        | Some UndefConst, _ | _, Some UndefConst -> UidM.add u SymConst.UndefConst d
-        | None, _ | _, None -> d)
-     | Id id, Null | Gid id, Null -> d
-     | _ ->
-       failwith
-         ("insn_flow: invalid cnd arguments. Arguments are: "
-          ^ Llutil.string_of_operand op1
-          ^ " and "
-          ^ Llutil.string_of_operand op2))
-  | Store _ | Call (Void, _, _) -> d
-  | _ -> UidM.add u SymConst.NonConst d
-;;
+let insn_flow ((uid, insn) : uid * insn) (fact : fact) : fact =
+  let open SymConst in
 
+  let get_value x = match UidM.find_opt x fact with
+    | Some value -> value
+    | None -> NonConst
+  in
+
+  let cmb f = function
+    | (UndefConst, _) | (_, UndefConst) -> UndefConst
+    | (NonConst, _) | (_, NonConst) -> NonConst
+    | (Const val1, Const val2) -> Const (f val1 val2)
+  in
+
+  let evaluate_instruction = function
+    | Binop (binop, ty, Const val1, Const val2) ->
+      cmb (eval_binop binop) (Const val1, Const val2)
+    | Binop (binop, ty, Id id1, Id id2) ->
+      cmb (eval_binop binop) (get_value id1, get_value id2)
+    | Binop (binop, ty, Const val1, Id id2) ->
+      cmb (eval_binop binop) (Const val1, get_value id2)
+    | Binop (binop, ty, Id id1, Const val2) ->
+      cmb (eval_binop binop) (get_value id1, Const val2)
+
+    | Icmp (cnd, ty, Const val1, Const val2) ->
+      cmb (eval_cnd cnd) (Const val1, Const val2)
+    | Icmp (cnd, ty, Id id1, Id id2) ->
+      cmb (eval_cnd cnd) (get_value id1, get_value id2)
+    | Icmp (cnd, ty, Const val1, Id id2) ->
+      cmb (eval_cnd cnd) (Const val1, get_value id2)
+    | Icmp (cnd, ty, Id id1, Const val2) ->
+      cmb (eval_cnd cnd) (get_value id1, Const val2)
+    | Store _ | Call (Void, _, _) -> UndefConst
+    | _ -> NonConst
+  in
+
+  let result = evaluate_instruction insn in
+  UidM.add uid result fact
 (* The flow function across terminators is trivial: they never change const info *)
 let terminator_flow (t : terminator) (d : fact) : fact = d
 
