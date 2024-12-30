@@ -1,0 +1,29 @@
+int foo(int x, int y, int z) {
+  var tmp = x + y - z;
+  var tmp2 = x >> 17;
+  var tmp3 = y << 15;
+  var tmp4 = z >> 7;
+  return tmp + tmp2 - tmp3 + tmp4;
+}
+
+int program(int argc, string[] argv) {
+  var x = 0;
+  var y = 1;
+  var z = 2;
+  for (var i = 0; i < 10000000; i = i + 1;) {
+    var tmp1 = foo(x, y, z) + i;
+    var tmp2 = foo(y, z, x) + i;
+    var tmp3 = foo(z, x, y) + i;
+    var tmp4 = foo(tmp1, tmp2, tmp3) + i;
+    var tmp5 = foo(tmp2, tmp3, tmp1) + i;
+    var tmp6 = foo(tmp3, tmp1, tmp2) + i;
+    var tmp7 = foo(tmp4, tmp5, tmp6) + i;
+    var tmp8 = foo(tmp5, tmp6, tmp4) + i;
+    var tmp9 = foo(tmp6, tmp4, tmp5) + i;
+    x = foo(tmp7, tmp8, tmp9) + i;
+    y = foo(tmp8, tmp9, tmp7) + i;
+    z = foo(tmp9, tmp7, tmp8) + i;
+  }
+  print_int(x);
+  return 0;
+}
