@@ -858,17 +858,20 @@ module InterferenceGraph = struct
       ) g ""
 
   let find_degree_less_than (g:t) (k : int) : UidSet.t =
-    UidM.fold 
-      (fun x ((loc, _), s) set ->
-          let new_node = begin 
-            match loc with
-            | None -> 
-              if (calc_degree s < k) then UidSet.singleton x
-                else UidSet.empty 
-            | Some _ -> UidSet.empty 
-          end in
-          UidSet.union set new_node
-      ) g UidSet.empty 
+    try 
+      UidM.fold 
+        (fun x ((loc, _), s) set ->
+            let new_node = begin 
+              match loc with
+              | None -> 
+                if (calc_degree s < k) then UidSet.singleton x
+                  else UidSet.empty 
+              | Some _ -> UidSet.empty 
+            end in
+            UidSet.union set new_node
+        ) g UidSet.empty 
+    with 
+    | Not_found -> failwith "Not Found node degree less than k"
   
   let get_uncolored (g:t) : UidSet.t =
     try
@@ -939,7 +942,7 @@ let better_layout (f:Ll.fdecl) (live:liveness) : layout =
       init_node_g f 
   in
   
-  (* 3. precolored *)
+  (* 3. Precolored *)
   let precolored_g = 
     fold_fdecl
       (fun g (u, _) -> 
@@ -951,11 +954,12 @@ let better_layout (f:Ll.fdecl) (live:liveness) : layout =
       init_edge_g f 
   in
 
-  (* 4. preferred color *)
+  (* 4. Preferred color *)
   let preferred_g = 
     fold_fdecl
       (fun g _ -> g)
       (fun g _ -> g)
+      (* try to emit `move` when calling *)
       (fun g (u, insn) ->
         begin match insn with
           | Call (_, _, args) ->
@@ -977,22 +981,16 @@ let better_layout (f:Ll.fdecl) (live:liveness) : layout =
       precolored_g f 
   in
 
-  (* 5. k color *)
+  (* 5. K-coloring *)
 
   let rec k_color_graph (k: int) (g: InterferenceGraph.t) : InterferenceGraph.t =
     let non_precolored = 
-      try 
         InterferenceGraph.get_uncolored g 
-      with 
-      | Not_found -> failwith "Not Found at non_precolored"
     in
     if UidSet.is_empty non_precolored then g
     else
       let less_than_k = 
-        try 
         InterferenceGraph.find_degree_less_than g k 
-        with 
-        | Not_found -> failwith "Not Found at less_than_k"
       in
       let nodes = 
         if UidSet.is_empty less_than_k 
@@ -1005,24 +1003,23 @@ let better_layout (f:Ll.fdecl) (live:liveness) : layout =
             then u else u0
           ) nodes (UidSet.choose nodes)
       in
+      (* preference color of the node *)
       let pref_color = 
-        try 
           InterferenceGraph.get_pref_color g c_node 
-        with 
-        | Not_found -> failwith "Not Found at pref_color"
       in
   
       (* color recursively *)
-      let (colouring_g, (c_col_pair, c_neighbor)) = 
+      let (coloring_g, (c_col_pair, c_neighbor)) = 
         InterferenceGraph.remove_node g c_node
       in
       let colored_sub_g = 
-        k_color_graph k colouring_g 
+        k_color_graph k coloring_g 
       in
       let colored_g = 
         InterferenceGraph.add_node colored_sub_g c_node (c_col_pair, c_neighbor)
       in
   
+      (* color choice *)
       let neighbor_colors = 
         List.map (fun uid -> 
           let res = UidM.find uid colored_g in 
@@ -1035,20 +1032,21 @@ let better_layout (f:Ll.fdecl) (live:liveness) : layout =
       let vaild_color = 
         LocSet.filter (fun loc -> not @@ List.exists (fun x -> x = loc) neighbor_colors) pal 
       in
-      
-      (* color choice *)
-      let opt_chosen_col =
+
+      let color_choice =
         if LocSet.is_empty pref_color then
-          let best_colour_opt = 
+          (* the preference color need to not confilct with others, then it is the best choice *)
+          let best_color_opt = 
             LocSet.choose_opt @@ LocSet.inter LocSet.empty vaild_color 
           in
-          begin match best_colour_opt with
+          begin match best_color_opt with
             | None -> LocSet.choose_opt vaild_color
-            | _ -> best_colour_opt
+            | _ -> best_color_opt
           end
         else LocSet.choose_opt @@ LocSet.inter vaild_color pref_color
       in
-      begin match opt_chosen_col with
+      (* Coloring with chosen color *)
+      begin match color_choice with
         | Some c -> 
           InterferenceGraph.set_color colored_g c_node c
         | None -> 
