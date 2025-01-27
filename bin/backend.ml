@@ -887,7 +887,8 @@ end
 
 
 let better_layout (f:Ll.fdecl) (live:liveness) : layout =
-  (* TODO: modify it into better *)
+  (* Better layout performance *)
+  (* Thanks `albertsutz` for main idea *)
   let n_arg = ref 0 in
   let n_spill = ref 0 in
 
